@@ -1,9 +1,12 @@
 package com.example.taskmanagementsystem.controller;
 
 import com.example.taskmanagementsystem.entity.User;
+import com.example.taskmanagementsystem.exception.UserAlreadyExistsException;
+import com.example.taskmanagementsystem.model.AuthenticationDTO;
 import com.example.taskmanagementsystem.model.LoginJson;
 import com.example.taskmanagementsystem.model.ResponseJson;
 import com.example.taskmanagementsystem.model.UserDTO;
+import com.example.taskmanagementsystem.security.JWTUtil;
 import com.example.taskmanagementsystem.service.UserServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -17,6 +20,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,12 +41,14 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserServiceImpl userServiceImpl;
     private final PasswordEncoder passwordEncoder;
+    private final JWTUtil jwtUtil;
 
     @Autowired
-    public AuthController(AuthenticationManager authenticationManager, UserServiceImpl userServiceImpl, PasswordEncoder passwordEncoder) {
+    public AuthController(AuthenticationManager authenticationManager, UserServiceImpl userServiceImpl, PasswordEncoder passwordEncoder, JWTUtil jwtUtil) {
         this.authenticationManager = authenticationManager;
         this.userServiceImpl = userServiceImpl;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
     /**
      * Endpoint for user registration.
@@ -51,41 +57,31 @@ public class AuthController {
      * @return ResponseEntity with a JSON response indicating the registration status.
      */
     @RequestMapping(value = "/register", method = RequestMethod.POST,consumes = MediaType.APPLICATION_JSON_VALUE,produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> register(@Valid @RequestBody UserDTO userDTO){
+    public Map<String, String> register(@Valid @RequestBody UserDTO userDTO){
         if (userServiceImpl.userExists(userDTO.getEmail())){
             log.warn("User registration failed. User with email {} already exists", userDTO.getEmail());
-            return new ResponseEntity<>(new ResponseJson("User with credentials already exists","Failed"),HttpStatus.BAD_REQUEST);
+            throw new UserAlreadyExistsException("User with the email already exists");
         }
         userServiceImpl.saveUser(userDTO, passwordEncoder.encode(userDTO.getPassword()),User.Role.ROLE_USER);
         log.info("User registered successfully: {}", userDTO.getEmail());
-        return new ResponseEntity<>(new ResponseJson("User registered","Success"),HttpStatus.OK);
+        String token = jwtUtil.generateToken(userDTO.getEmail());
+        return Map.of("jwt-token", token);
     }
 
-    /**
-     * Endpoint for user login.
-     *
-     * @param loginJson LoginJson object containing user login credentials.
-     * @param request   HttpServletRequest for accessing the session.
-     * @return ResponseEntity with a JSON response indicating the login status.
-     */
     @RequestMapping(value = "/login", method = RequestMethod.POST)
-    public ResponseEntity<?> login(@Valid @RequestBody LoginJson loginJson, HttpServletRequest request){
-                try{
-                    Authentication authentication = authenticationManager.
-                            authenticate(new UsernamePasswordAuthenticationToken(
-                                    loginJson.getEmail(),loginJson.getPassword()));
-                    SecurityContext securityContext = SecurityContextHolder.getContext();
-                    securityContext.setAuthentication(authentication);
+    public Map<String,String> performLogin(@RequestBody AuthenticationDTO authenticationDTO){
+        UsernamePasswordAuthenticationToken authInputToken =
+                new UsernamePasswordAuthenticationToken(authenticationDTO.getEmail(),authenticationDTO.getPassword());
+        try {
+            authenticationManager.authenticate(authInputToken);
+            log.info("User {} logged in", authenticationDTO.getEmail());
+        } catch (AuthenticationException e) {
+            log.error("Invalid credentials for login attempt",e);
+            throw new RuntimeException(e);
+        }
 
-                    // Create a new session and add the security context.
-                    HttpSession session = request.getSession(true);
-                    session.setAttribute("SPRING_SECURITY_CONTEXT",securityContext);
-                } catch (BadCredentialsException ex){
-                    log.error("Invalid credentials for login attempt",ex);
-                    return new ResponseEntity<>(new ResponseJson("Invalid credentials","Failed"),HttpStatus.BAD_REQUEST);
-                }
-                log.info("User {} logged in", loginJson.getEmail());
-                return new ResponseEntity<>(new ResponseJson("User logged in","Success"),HttpStatus.OK);
+        String token = jwtUtil.generateToken(authenticationDTO.getEmail());
+        return Map.of("jwt-token",token);
     }
 
     /**

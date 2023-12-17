@@ -3,12 +3,16 @@ package com.example.taskmanagementsystem.model;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.Set;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class UserDTO {
     @NotNull
     @Size(min = 0)
@@ -31,4 +35,7 @@ public class UserDTO {
 
     @Size(min = 0)
     List<CommentDTO> commentDTOList;
+
+    public UserDTO(String email, String password) {
+    }
 }

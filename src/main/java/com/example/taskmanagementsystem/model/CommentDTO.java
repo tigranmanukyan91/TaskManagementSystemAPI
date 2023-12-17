@@ -16,4 +16,8 @@ public class CommentDTO {
     @Size(min = 0)
     private TaskDTO taskDTO;
 
+    public CommentDTO(String comment, TaskDTO taskDTO) {
+        this.comment = comment;
+        this.taskDTO = taskDTO;
+    }
 }
