@@ -10,6 +10,7 @@ import com.example.taskmanagementsystem.exception.UserNotFoundException;
 import com.example.taskmanagementsystem.model.TaskDTO;
 import com.example.taskmanagementsystem.model.UserDTO;
 import com.example.taskmanagementsystem.repository.TaskRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Service
+@Slf4j
 public class TaskServiceImpl implements TaskService{
     private final UserConverter userConverter;
     private final TaskRepository taskRepository;
@@ -34,6 +36,7 @@ public class TaskServiceImpl implements TaskService{
 
     @Override
     public TaskDTO createTask(TaskDTO taskDTO) {
+        log.info("Creating a task: {}",taskDTO.getTitle());
         Task task = new Task();
         task.setId(taskDTO.getId());
         task.setTitle(taskDTO.getTitle());
@@ -55,6 +58,7 @@ public class TaskServiceImpl implements TaskService{
 
     @Override
     public String updateTask(TaskDTO taskDTO) {
+        log.info("Updating task with ID: {}",taskDTO.getId());
         Optional<Task> optionalTask = taskRepository.findById(taskDTO.getId());
         if (optionalTask.isEmpty()){
             throw new TaskNotFoundException("Task not found");
@@ -77,6 +81,7 @@ public class TaskServiceImpl implements TaskService{
 
     @Override
     public TaskDTO getTask(long id) {
+        log.info("Getting task with ID: {}",id);
         Optional<Task> optionalTask = taskRepository.findById(id);
         if (optionalTask.isEmpty()){
             throw new TaskNotFoundException("Task with the id is not found");
@@ -86,6 +91,7 @@ public class TaskServiceImpl implements TaskService{
 
     @Override
     public String deleteTask(long id) {
+        log.info("Deleting task with ID: {}", id);
         if (taskRepository.findById(id).isEmpty()){
             throw new TaskNotFoundException("Task with the id is not found");
         }
@@ -95,6 +101,7 @@ public class TaskServiceImpl implements TaskService{
 
     @Override
     public Set<TaskDTO> getTasksByAuthor(UserDTO author) {
+        log.info("Getting tasks by author: {}", author.getEmail());
         if (author.getAuthoredTasks().isEmpty()){
             throw new TaskNotFoundException("There are no tasks available");
         }
@@ -103,6 +110,7 @@ public class TaskServiceImpl implements TaskService{
 
     @Override
     public Set<TaskDTO> getTasksByAssignee(UserDTO assignee) {
+        log.info("Getting tasks by assignee: {}",assignee.getEmail());
         if (assignee.getAssignedTasks().isEmpty()){
             throw new TaskNotFoundException("There are no tasks available");
         }
@@ -110,11 +118,13 @@ public class TaskServiceImpl implements TaskService{
     }
     @Override
     public UserDTO getAuthorByTask(TaskDTO taskDTO) {
+        log.info("Getting author by task ID: {}",taskDTO.getId());
         return taskDTO.getAuthor();
     }
 
     @Override
     public Set<UserDTO> getAssigneesByTask(TaskDTO taskDTO) {
+        log.info("Getting assignees by task ID: {}",taskDTO.getId());
         if (taskDTO.getAssignees().isEmpty()){
             throw new UserNotFoundException("There are no assignees found");
         }
